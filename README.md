@@ -42,7 +42,7 @@ pip install PyYAML jsonschema
 ```
 risk_note.schema.json      # JSON Schema (Draft 2020-12) for Risk Note v1.0
 safety_protocol.py         # CLI: lint, check-evidence, generate-assurance-case, prioritize, gate-check
-calculate_posture.py       # Default posture function (S×E×R with asymmetric dominance)
+calculate_posture.py       # Default posture function (SxExR with asymmetric dominance)
 examples/
   risk-note-47.yaml        # Example Risk Note instance
 ```
@@ -53,16 +53,16 @@ examples/
 
 ```mermaid
 flowchart LR
-  A[Observe] --> B[Infer]
-  B --> C[Decide Posture]
-  C --> D{Controls\nPrevent/Detect/Contain/Recover}
-  D --> E[Monitor Tripwires]
+  A["Observe"] --> B["Infer"]
+  B --> C["Decide Posture"]
+  C --> D{"Controls<br/>Prevent/Detect/Contain/Recover"}
+  D --> E["Monitor Tripwires"]
   E --> A
-  B --> F[Uncertainty Ledger]
-  F --> G[EVOI Rank]
-  G --> H[Next Experiment]
+  B --> F["Uncertainty Ledger"]
+  F --> G["EVOI Rank"]
+  G --> H["Next Experiment"]
   H --> A
-  C --> I[Assurance Case]
+  C --> I["Assurance Case"]
   I -->|review| B
 ```
 
@@ -152,8 +152,8 @@ Visualized:
 ```mermaid
 stateDiagram-v2
   [*] --> green
-  green --> amber: tripwire hit / risk_score ≥ 2.0
-  amber --> red: S≥4 or R≤2 and E≥3
+  green --> amber: tripwire hit / risk_score >= 2.0
+  amber --> red: S>=4 or R<=2 and E>=3
   amber --> green: controls effective & risk_score < 2.0
   red --> amber: mitigations reduce E or raise R
   red --> green: verified controls + low risk_score
@@ -173,13 +173,13 @@ A GSN-ish view:
 
 ```mermaid
 graph TD
-  G0[Goal: Safety claim Claim-47 v1.3.0] --> S1[Strategy: Obs–Inf–Dec + defeasible claim]
-  S1 --> Cx[Context: Scope, Dist, Validity, Shift Budget]
-  S1 --> E1[Solution: Evidence set E-102, ...]
-  S1 --> A1[Assumption: Model-to-world mapping & thresholds]
-  S1 --> U1[Sub-Goal: Uncertainty ledger entries + contribution]
-  S1 --> T1[Sub-Goal: Triage S×E×R → Posture]
-  S1 --> N1[Solution: Next experiment (EVOI-ranked) to move decision boundary]
+  G0["Goal: Safety claim Claim-47 v1.3.0"] --> S1["Strategy: Obs-Inf-Dec + defeasible claim"]
+  S1 --> Cx["Context: Scope, Dist, Validity, Shift Budget"]
+  S1 --> E1["Solution: Evidence set E-102, ..."]
+  S1 --> A1["Assumption: Model-to-world mapping & thresholds"]
+  S1 --> U1["Sub-Goal: Uncertainty ledger entries + contribution"]
+  S1 --> T1["Sub-Goal: Triage SxExR -> Posture"]
+  S1 --> N1["Solution: Next experiment (EVOI-ranked) to move decision boundary"]
 ```
 
 ---
@@ -266,4 +266,4 @@ attribution in this NOTICE for details.
 
 ### Third-party attributions
 
-If you bundle third-party code, keep their original license headers and add a short note under `NOTICE` (or in `THIRD_PARTY_NOTICES`) identifying the component, version, and license.
+If you bundle third-party code, keep their original license headers and add a short note under `NOTICE` (or in `THIRD_PARTY_NOTICES`) identifying the component, version, and license. 
