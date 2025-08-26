@@ -161,7 +161,7 @@ stateDiagram-v2
 
 ---
 
-## From Risk Note to Assurance Case
+# From Risk Note to Assurance Case
 
 Generate a compact, human-reviewable argument skeleton directly from the typed note.
 
@@ -169,7 +169,7 @@ Generate a compact, human-reviewable argument skeleton directly from the typed n
 ./safety_protocol.py generate-assurance-case examples/risk-note-47.yaml
 ```
 
-A GSN-ish view:
+**Output**: A GSN-compatible view:
 
 ```mermaid
 graph TD
@@ -179,8 +179,8 @@ graph TD
   E1["Solution: Evidence set E-102, etc."]
   A1["Assumption: Model-to-world mapping & thresholds"]
   U1["Sub-Goal: Uncertainty ledger entries + contribution"]
-  T1["Sub-Goal: Triage SxExR -> Posture"]
-  N1["Solution: Next experiment (EVOI-ranked) to move decision boundary"]
+  T1["Sub-Goal: Triage SxExR yields Posture"]
+  N1["Solution: Next experiment EVOI-ranked to move decision boundary"]
 
   G0 --> S1
   S1 --> Cx
@@ -189,6 +189,29 @@ graph TD
   S1 --> U1
   S1 --> T1
   S1 --> N1
+```
+
+The generated assurance case makes the safety argument structure explicit: which evidence supports which claims, what assumptions bridge evidence to conclusions, where uncertainty remains, and what investigation comes next. Independent reviewers can audit the logic without reconstructing the argument from scratch.
+
+## Evidence Freshness in CI
+
+Evidence ages; confidence rots. Fail the build when sources exceed your staleness policy.
+
+```bash
+./safety_protocol.py check-evidence examples/risk-note-47.yaml --max-age P30D
+```
+
+**Example output**:
+
+```
+✓ Evidence E-102: Fresh (updated 12 days ago)
+✗ Evidence E-089: Stale (updated 45 days ago, exceeds 30d threshold)
+✗ Evidence E-134: Missing (benchmark results not found)
+
+BUILD FAILED: 2 evidence sources violate staleness policy
+```
+
+This prevents confidence decay from accumulating invisibly and ensures that safety decisions rest on current rather than historical evidence.
 
 ---
 
