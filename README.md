@@ -173,14 +173,22 @@ A GSN-ish view:
 
 ```mermaid
 graph TD
-  G0["Goal: Safety claim Claim-47 v1.3.0"] --> S1["Strategy: Obs-Inf-Dec + defeasible claim"]
-  S1 --> Cx["Context: Scope, Dist, Validity, Shift Budget"]
-  S1 --> E1["Solution: Evidence set E-102, ..."]
-  S1 --> A1["Assumption: Model-to-world mapping & thresholds"]
-  S1 --> U1["Sub-Goal: Uncertainty ledger entries + contribution"]
-  S1 --> T1["Sub-Goal: Triage SxExR -> Posture"]
-  S1 --> N1["Solution: Next experiment (EVOI-ranked) to move decision boundary"]
-```
+  G0["Goal: Safety claim Claim-47 v1.3.0"]
+  S1["Strategy: Obs-Inf-Dec + defeasible claim"]
+  Cx["Context: Scope, Dist, Validity, Shift Budget"]
+  E1["Solution: Evidence set E-102, etc."]
+  A1["Assumption: Model-to-world mapping & thresholds"]
+  U1["Sub-Goal: Uncertainty ledger entries + contribution"]
+  T1["Sub-Goal: Triage SxExR -> Posture"]
+  N1["Solution: Next experiment (EVOI-ranked) to move decision boundary"]
+
+  G0 --> S1
+  S1 --> Cx
+  S1 --> E1
+  S1 --> A1
+  S1 --> U1
+  S1 --> T1
+  S1 --> N1
 
 ---
 
