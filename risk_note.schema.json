@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["system", "evidence"],
+  "properties": {
+    "system": {
+      "type": "object",
+      "required": ["name", "revision"],
+      "properties": {
+        "name": {"type": "string"},
+        "revision": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "timestamp"],
+        "properties": {
+          "id": {"type": "string"},
+          "timestamp": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    "claims": {"type": "array"}
+  }
+}
