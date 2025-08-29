@@ -6,9 +6,9 @@ PYTEST=$(VENV)/bin/pytest
 .PHONY: assure venv clean
 
 assure: venv
-	@$(PIP) install -e .
-	@$(PYTEST) -q
-	@echo "ASSURANCE OK — pipeline testado ponta a ponta."
+@$(PIP) install -e .
+@$(PYTEST) -q
+@echo "ASSURANCE OK - pipeline tested end to end."
 
 venv:
 	@test -d $(VENV) || python -m venv $(VENV)

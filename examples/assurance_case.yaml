@@ -34,7 +34,7 @@ claims:
         prop: "brake_ready"
     evidence:
       - type: kripke_semantics
-        detail: "∀v in R_system(w0): brake_ready ∈ facts(v)"
+        detail: "forall v in R_system(w0): brake_ready in facts(v)"
   - id: C3
     type: epistemic
     spec:
