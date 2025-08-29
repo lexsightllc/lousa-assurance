@@ -1,0 +1,22 @@
+logic: KD
+agents: ["system","operator"]
+worlds:
+  - id: w0
+    facts: ["sensor_ok"]
+  - id: w1
+    facts: ["brake_ready","sensor_ok"]
+  - id: w2
+    facts: []
+edges:
+  - agent: system
+    frm: w0
+    to: w1
+  - agent: system
+    frm: w1
+    to: w1
+  - agent: operator
+    frm: w0
+    to: w2
+  - agent: operator
+    frm: w2
+    to: w2
