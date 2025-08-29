@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 CLI = str(ROOT / "safety_protocol.py")
 SCHEMA = str(ROOT / "risk_note.schema.json")
-NOTE = str(ROOT / "risk-note-47.yaml")  # o repositório tem este arquivo na raiz
+NOTE = str(ROOT / "risk-note-47.yaml")  # the repository has this file at the root
 
 def run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run([PY, CLI, *args], cwd=ROOT, text=True, capture_output=True)
@@ -21,10 +21,10 @@ def test_evidence_freshness_with_lenient_policy_passes():
 def test_generate_assurance_case_outputs_graph_text():
     cp = run("generate-assurance-case", NOTE)
     assert cp.returncode == 0, cp.stderr + cp.stdout
-    # README mostra um grafo com "Goal:" como prefixo do nó principal; checamos por isso.
+    # The README shows a graph with "Goal:" as the prefix of the main node; check for it.
     assert "Goal:" in cp.stdout or "Goal" in cp.stdout
 
 def test_prioritize_runs_with_budget_flag():
-    # O README demonstra "prioritize" com --budget horas ISO-8601; usamos o Risk Note existente. 
+    # The README demonstrates "prioritize" with --budget in ISO-8601 hours; we use the existing risk note.
     cp = run("prioritize", ".", "--budget", "PT40H")
     assert cp.returncode == 0, cp.stderr + cp.stdout
