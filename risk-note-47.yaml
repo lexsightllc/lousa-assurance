@@ -1,7 +1,0 @@
-system:
-  name: Test System
-  revision: "47"
-evidence:
-  - id: ev1
-    timestamp: "2025-07-01T00:00:00Z"
-claims: []
