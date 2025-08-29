@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lousa-assurance"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = [
   "pydantic>=2.6",
   "PyYAML>=6.0",
   "numpy>=1.26",
   "scipy>=1.12",
-  "networkx>=3.3",
+  "networkx>=3.2",
   "graphviz>=0.20",
   "typer>=0.12",
   "structlog>=24.1",
@@ -23,3 +23,12 @@ lousa = "lousa.cli:app"
 
 [project.optional-dependencies]
 test = ["pytest"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"lousa" = ["schemas/*.json"]

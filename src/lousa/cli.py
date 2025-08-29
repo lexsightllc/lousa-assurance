@@ -1,40 +1,69 @@
-import json, pathlib
-from datetime import datetime
-import typer, structlog, yaml
-from .dsl import load_risknote
-from .eval import evaluate
-from .gsn import export_svg
-from .notebook import generate_notebook
-from .provenance import provenance
+"""Lousa command-line interface.
 
-app = typer.Typer()
-log = structlog.get_logger()
+Usage::
 
+    lousa validate examples/latency_risk.yaml
+    lousa run examples/latency_risk.yaml --out results.json
+    lousa schema --out risk_note.schema.json
+"""
+from __future__ import annotations
 
-@app.command()
-def run(yaml_path: str, outdir: str = "runs"):
-    note = load_risknote(yaml_path)
-    now = datetime.utcnow()
-    results = evaluate(note, now)
-    with open(yaml_path, "r", encoding="utf-8") as f:
-        ytxt = f.read()
-    prov = provenance({"note_id": note.id}, ytxt)
-    out = {"provenance": prov, "results": results}
-    out_dir = pathlib.Path(outdir) / note.id
-    out_dir.mkdir(parents=True, exist_ok=True)
-    json_path = out_dir / "assurance.json"
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=2)
-    svg_path = export_svg(note, results, str(out_dir / "gsn"))
-    generate_notebook(ytxt, results, svg_path, str(out_dir / "lousa_demo.ipynb"))
-    log.info("assurance_complete", note_id=note.id, posture=results["posture"], json=str(json_path), gsn=svg_path)
+import json
+import sys
+from pathlib import Path
+from typing import Optional
+
+import typer
+import yaml
+from importlib import resources as importlib_resources
+
+from .eval import evaluate_note
+from .models import RiskNote
+from .notebook import generate as generate_notebook
+from .provenance import capture as capture_provenance, dump_json as dump_prov_json
+
+app = typer.Typer(help="Lousa assurance CLI")
 
 
 @app.command()
-def validate(yaml_path: str):
-    _ = load_risknote(yaml_path)
-    typer.echo("YAML is valid against the DSL schema.")
+def validate(path: Path):
+    """Validate a YAML risk note against the JSON Schema."""
+    with path.open() as f:
+        data = yaml.safe_load(f)
+    RiskNote.model_validate(data)  # raises if invalid
+    typer.echo("✓ Validation succeeded", err=True)
 
 
-if __name__ == "__main__":
-    app()
+@app.command()
+def run(path: Path, out: Optional[Path] = typer.Option(None, help="Write JSON result here")):
+    """Evaluate a note, save JSON and notebook, print posture."""
+    with path.open() as f:
+        note_data = yaml.safe_load(f)
+    note = RiskNote.model_validate(note_data)
+
+    result = evaluate_note(note)
+    if out:
+        out.write_text(json.dumps(result, indent=2))
+        typer.echo(f"JSON written to {out}", err=True)
+
+    nb_path = generate_notebook(note)
+    typer.echo(f"Notebook written to {nb_path}", err=True)
+
+    prov = capture_provenance(path)
+    dump_prov_json(prov, Path(f"provenance_{note.id}.json"))
+
+    typer.echo(f"Posture: {result['posture']}")
+
+
+@app.command()
+def schema(out: Optional[Path] = typer.Option(None, help="Path to write the JSON Schema")):
+    """Emit the packaged JSON Schema to stdout or a file (portable)."""
+    pkg = "lousa"
+    name = "schemas/risk_note.schema.json"
+    with importlib_resources.files(pkg).joinpath(name).open("r") as f:
+        schema_txt = f.read()
+    if out:
+        out.write_text(schema_txt)
+        typer.echo(f"Schema written to {out}", err=True)
+    else:
+        sys.stdout.write(schema_txt)

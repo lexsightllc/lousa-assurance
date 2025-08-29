@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lousa.dev/schemas/risk_note.schema.json",
+  "title": "LousaRiskNote",
+  "type": "object",
+  "required": ["version", "id", "title", "claims"],
+  "properties": {
+    "version": {"type": "string"},
+    "id": {"type": "string"},
+    "title": {"type": "string"},
+    "description": {"type": "string"},
+    "context": {"type": "object"},
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "prior",
+          "threshold_conditional",
+          "threshold_blocking"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "prior": {"type": "number", "minimum": 0, "maximum": 1},
+          "threshold_conditional": {"type": "number", "minimum": 0, "maximum": 1},
+          "threshold_blocking": {"type": "number", "minimum": 0, "maximum": 1},
+          "valid_from": {"type": "string", "format": "date-time"},
+          "valid_until": {"type": "string", "format": "date-time"},
+          "staleness_halflife_days": {"type": "number", "exclusiveMinimum": 0},
+          "contexts": {"type": "array", "items": {"type": "string"}},
+          "assumptions": {"type": "array", "items": {"type": "string"}},
+          "justifications": {"type": "array", "items": {"type": "string"}},
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind",
+                "observed_at",
+                "lr_pos",
+                "lr_neg"
+              ],
+              "properties": {
+                "id": {"type": "string"},
+                "kind": {"type": "string"},
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "source": {"type": "string"},
+                "observed_at": {"type": "string", "format": "date-time"},
+                "supports": {"type": "boolean"},
+                "lr_pos": {"type": "number", "minimum": 1},
+                "lr_neg": {"type": "number", "maximum": 1, "exclusiveMinimum": 0},
+                "weight": {"type": "number", "minimum": 0},
+                "halflife_days": {"type": "number", "exclusiveMinimum": 0}
+              }
+            }
+          },
+          "investigations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "expected_lr_support", "expected_lr_refute", "cost_hours"],
+              "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "expected_lr_support": {"type": "number", "minimum": 1},
+                "expected_lr_refute": {"type": "number", "maximum": 1, "exclusiveMinimum": 0},
+                "cost_hours": {"type": "number", "exclusiveMinimum": 0},
+                "probability_support": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
