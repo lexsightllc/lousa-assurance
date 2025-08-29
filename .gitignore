@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+notebooks/*.ipynb
+.pytest_cache/
+.coverage
