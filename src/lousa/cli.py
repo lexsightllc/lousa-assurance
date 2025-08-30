@@ -42,7 +42,7 @@ from .eval import (
 )
 from .models import RiskNote
 from .notebook import generate_notebook
-from .provenance import capture_provenance
+from .provenance import capture_provenance, format_provenance, save_provenance
 from .gsn import generate_gsn_diagram
 
 # Configure rich console
@@ -61,6 +61,7 @@ class OutputFormat(str, Enum):
     JSON = "json"
     YAML = "yaml"
     TEXT = "text"
+    NOTEBOOK = "notebook"  # Special format for Jupyter notebooks
 
 
 def print_validation_errors(errors: List[Dict[str, Any]]) -> None:
@@ -79,6 +80,120 @@ def print_validation_errors(errors: List[Dict[str, Any]]) -> None:
         table.add_row(field, error["msg"])
     
     console.print(table)
+
+
+@app.command()
+def notebook(
+    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    output_dir: Path = Option(
+        ".", "--output-dir", "-o", 
+        help="Directory to save the notebook",
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+        resolve_path=True,
+    ),
+    include_yaml: bool = Option(
+        True, 
+        help="Include the full YAML specification in the notebook"
+    ),
+    include_gsn: bool = Option(
+        True,
+        help="Generate and include GSN diagram in the notebook"
+    ),
+) -> None:
+    """Generate a Jupyter notebook for a risk assessment.
+    
+    This command creates a self-contained Jupyter notebook that documents the
+    complete evaluation of a risk note, including the input specification,
+    evaluation results, visualizations, and provenance information.
+    """
+    try:
+        with console.status("[bold blue]Generating notebook..."):
+            # Ensure output directory exists
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Load and validate the risk note
+            try:
+                with path.open() as f:
+                    data = yaml.safe_load(f)
+                note = RiskNote.model_validate(data)
+            except Exception as e:
+                console.print(f"[red]Error loading risk note: {e}")
+                raise typer.Exit(1)
+            
+            # Generate the notebook
+            notebook_path = generate_notebook(
+                note=note,
+                output_dir=output_dir,
+                include_yaml=include_yaml,
+                include_gsn=include_gsn,
+            )
+            
+            console.print(f"[green]✓ Notebook generated: {notebook_path}")
+            
+    except Exception as e:
+        console.print(f"[red]Error generating notebook: {e}")
+        if __debug__:  # Only show traceback in debug mode
+            import traceback
+            traceback.print_exc()
+        if isinstance(e, typer.Exit):
+            raise
+        raise typer.Exit(1)
+
+
+@app.command()
+def provenance(
+    path: Path = Option(None, "--path", "-p", help="Path to the YAML risk note"),
+    output: Optional[Path] = Option(
+        None, "--output", "-o", 
+        help="Save provenance to this file (default: print to stdout)",
+        dir_okay=False,
+    ),
+    format: OutputFormat = Option(
+        OutputFormat.TEXT, "--format", "-f", 
+        help="Output format",
+        case_sensitive=False,
+    ),
+    include_dependencies: bool = Option(
+        True,
+        help="Include package dependency information"
+    ),
+) -> None:
+    """Generate and display provenance information.
+    
+    This command captures and displays detailed information about the execution
+    environment, dependencies, and input files to support reproducibility and
+    auditability of risk assessments.
+    """
+    try:
+        with console.status("[bold blue]Capturing provenance..."):
+            # Capture provenance
+            prov = capture_provenance(
+                note_path=path,
+                include_dependencies=include_dependencies,
+            )
+            
+            # Format the output
+            if format == OutputFormat.NOTEBOOK:
+                console.print("[yellow]Notebook format not supported for provenance command")
+                format = OutputFormat.TEXT
+                
+            output_text = format_provenance(prov, format=format)
+            
+            # Save to file or print to stdout
+            if output:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(output_text)
+                console.print(f"[green]✓ Provenance saved to {output}")
+            else:
+                console.print(output_text)
+                
+    except Exception as e:
+        console.print(f"[red]Error capturing provenance: {e}")
+        if isinstance(e, typer.Exit):
+            raise
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -196,6 +311,20 @@ def run(
     now: Optional[str] = Option(
         None, 
         help="Evaluation timestamp (ISO 8601 format, e.g., 2025-01-01T12:00:00Z)",
+    ),
+    generate_notebook: bool = Option(
+        False,
+        "--notebook", "-n",
+        help="Generate a Jupyter notebook with the evaluation results"
+    ),
+    notebook_output: Optional[Path] = Option(
+        None,
+        "--notebook-output",
+        help="Directory to save the notebook (default: same as --output-dir)",
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+        resolve_path=True,
     ),
 ) -> None:
     """Evaluate a risk note and generate reports.

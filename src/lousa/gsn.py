@@ -285,7 +285,7 @@ def _add_claim_to_graph(
 ) -> None:
     """Add a claim and its supporting elements to the graph."""
     # Find the evaluation result for this claim
-    claim_result = next((c for c in evaluation["claims"] if c.id == claim.id), None)
+    claim_result = next((c for c in evaluation["claims"] if c.claim_id == claim.id), None)
     if not claim_result:
         logger.warning(f"No evaluation result found for claim: {claim.id}")
         return
@@ -295,26 +295,28 @@ def _add_claim_to_graph(
     style = _STYLE_BY_POSTURE.get(posture, {})
     
     # Format the label with HTML for better formatting
-    label = (
-        f'<<table border="0" cellborder="0" cellspacing="2">'
-        f'<tr><td align="left" border="1" bgcolor="{style.get("fillcolor", "white")}" '
+    label = [
+        '<<table border="0" cellborder="1" cellspacing="2" cellpadding="4">',
+        f'<tr><td align="left" bgcolor="{style.get("fillcolor", "white")}" '
         f'color="{style.get("color", "black")}" port="port1">'
         f'<font point-size="12"><b>{_format_text(claim.title)}</b></font>'
-    )
+        '</td></tr>'
+    ]
     
     # Add posterior probability if available
     if hasattr(claim_result, 'posterior'):
-        label += f'</td></tr><tr><td align="left">Posterior: {claim_result.posterior:.1%}</td></tr>'
+        label.append(f'<tr><td align="left">Posterior: {claim_result.posterior:.1%}</td></tr>')
     
     # Add threshold information
     if claim.threshold_conditional is not None and claim.threshold_blocking is not None:
-        label += (
-            f'</td></tr><tr><td align="left">'
+        label.append(
+            f'<tr><td align="left">'
             f'Thresholds: Cond={claim.threshold_conditional:.1%}, Block={claim.threshold_blocking:.1%}'
-            f'</td></tr>'
+            '</td></tr>'
         )
     
-    label += "</table>>"
+    label.append('</table>>')
+    label = ''.join(label)
     
     # Add the claim node with HTML label
     graph.node(
@@ -376,15 +378,15 @@ def _add_evidence_to_graph(
                 
                 # Determine evidence strength
                 strength = _format_evidence_strength(
-                    evidence.lr_plus,
-                    evidence.lr_minus,
+                    evidence.lr_pos,
+                    evidence.lr_neg,
                 )
                 style = _EVIDENCE_STRENGTH_STYLES.get(strength, {})
                 
                 # Format the evidence label
                 label = f"{_format_text(evidence.description, 30)}"
                 if contribution:
-                    label += f"\nΔlog-odds: {contribution.delta_log_odds:+.2f}"
+                    label += f"\nΔlog-odds: {contribution.delta_logodds:+.2f}"
                 
                 # Add the evidence node
                 evidence_id = f"{claim.id}_evidence_{_hash(evidence.id)}"
@@ -422,11 +424,12 @@ def _add_investigations_to_graph(
         for inv in claim.investigations:
             inv_id = f"{claim.id}_investigation_{_hash(inv.id)}"
             
-            # Format the investigation label
+            # Format the investigation label with available attributes
             label = (
                 f"{_format_text(inv.title, 30)}\n"
                 f"Cost: {inv.cost_hours}h | "
-                f"Expected Δp: {inv.expected_delta:+.2f}"
+                f"LR+: {inv.expected_lr_support:.1f} | "
+                f"LR-: {inv.expected_lr_refute:.2f}"
             )
             
             # Add the investigation node
