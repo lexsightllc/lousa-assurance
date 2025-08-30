@@ -1,53 +1,283 @@
-"""Lousa command-line interface.
+"""Lousa command-line interface for risk assessment and assurance tracking.
 
-Usage::
+Lousa provides tools for evaluating risk notes, generating reports, and tracking
+risk over time using Bayesian reasoning with temporal decay.
 
-    lousa validate examples/latency_risk.yaml
-    lousa run examples/latency_risk.yaml --out results.json
-    lousa schema --out risk_note.schema.json
+Examples:
+
+    # Validate a risk note file
+    lousa validate examples/notes/security_risk.yaml
+
+    # Evaluate a risk note and save results
+    lousa run examples/notes/security_risk.yaml --output-dir ./results
+
+    # Generate a JSON schema for risk notes
+    lousa schema --output risk_note.schema.json
+
+    # Generate a GSN diagram for a risk note
+    lousa gsn examples/notes/security_risk.yaml --output-dir ./diagrams
 """
 from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any, List, Tuple
 
 import typer
 import yaml
-from importlib import resources as importlib_resources
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
+from typer import Typer, Option
 
-from .eval import evaluate_note
+from .eval import (
+    evaluate_note,
+    NoteEvaluationResult,
+    ClaimResult,
+    Posture,
+    EvaluationError,
+)
 from .models import RiskNote
-from .notebook import generate as generate_notebook
-from .provenance import capture as capture_provenance, dump_json as dump_prov_json
+from .notebook import generate_notebook
+from .provenance import capture_provenance
+from .gsn import generate_gsn_diagram
 
-app = typer.Typer(help="Lousa assurance CLI")
+# Configure rich console
+console = Console()
+
+# Create the Typer app
+app = Typer(
+    name="lousa",
+    help="Lousa: A framework for evaluating temporal and epistemic assurance claims",
+    no_args_is_help=True,
+)
+
+
+class OutputFormat(str, Enum):
+    """Supported output formats for the CLI."""
+    JSON = "json"
+    YAML = "yaml"
+    TEXT = "text"
+
+
+def print_validation_errors(errors: List[Dict[str, Any]]) -> None:
+    """Pretty-print validation errors to the console."""
+    from rich.table import Table
+    
+    table = Table(
+        "Field", "Error", 
+        title="[red]Validation Errors", 
+        header_style="bold red",
+        border_style="red"
+    )
+    
+    for error in errors:
+        field = ".".join(str(loc) for loc in error["loc"])
+        table.add_row(field, error["msg"])
+    
+    console.print(table)
 
 
 @app.command()
-def validate(path: Path):
-    """Validate a YAML risk note against the JSON Schema."""
-    with path.open() as f:
-        data = yaml.safe_load(f)
-    RiskNote.model_validate(data)  # raises if invalid
-    typer.echo("✓ Validation succeeded", err=True)
+def validate(
+    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    verbose: bool = Option(False, "--verbose", "-v", help="Show detailed validation output"),
+) -> None:
+    """Validate a YAML risk note against the schema and data model.
+    
+    This command checks that the provided YAML file conforms to the expected
+    structure and contains valid values for all required fields.
+    """
+    try:
+        with console.status("[bold blue]Validating risk note..."):
+            # Read and parse the YAML file
+            try:
+                with path.open() as f:
+                    data = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                console.print(f"[red]Error parsing YAML: {e}")
+                raise typer.Exit(1)
+            
+            # Validate against the Pydantic model
+            try:
+                RiskNote.model_validate(data)
+                console.print("[green]✓ Risk note is valid")
+            except Exception as e:
+                if hasattr(e, "errors") and verbose:
+                    print_validation_errors(e.errors())
+                console.print(f"[red]✗ Validation failed: {e}")
+                raise typer.Exit(1)
+                
+    except Exception as e:
+        console.print(f"[red]Error during validation: {e}")
+        raise typer.Exit(1)
+
+
+def format_posterior(p: float) -> str:
+    """Format a posterior probability for display."""
+    if p < 0.1:
+        return f"[green]{p:.1%}[/]"
+    elif p < 0.5:
+        return f"[yellow]{p:.1%}[/]"
+    else:
+        return f"[red]{p:.1%}[/]"
+
+
+def format_posture(posture: Posture) -> str:
+    """Format a posture with appropriate color coding."""
+    styles = {
+        Posture.ACCEPTABLE: "[green]ACCEPTABLE[/]",
+        Posture.CONDITIONAL: "[yellow]CONDITIONAL[/]",
+        Posture.BLOCKING: "[red]BLOCKING[/]",
+        Posture.EXPIRED: "[dim]EXPIRED[/]",
+    }
+    return styles.get(posture, str(posture))
+
+
+def print_evaluation_summary(result: NoteEvaluationResult) -> None:
+    """Print a summary of the evaluation results to the console."""
+    from rich.panel import Panel
+    from rich.text import Text
+    
+    # Overall result
+    console.print("\n[bold]Evaluation Summary[/]")
+    console.print(f"Note: [bold]{result['title']}[/] ({result['note_id']})")
+    console.print(f"Overall Posture: {format_posture(result['overall_posture'])}")
+    
+    # Claims table
+    table = Table(
+        "ID", "Title", "Posture", "Posterior", "Evidence",
+        title="[bold]Claims[/]",
+        header_style="bold",
+        box=None,
+    )
+    
+    for claim in result["claims"]:
+        table.add_row(
+            claim.claim_id,
+            claim.title,
+            format_posture(claim.posture),
+            format_posterior(claim.posterior),
+            str(len(claim.contributions)),
+        )
+    
+    console.print(table)
+    
+    # Top recommendations
+    if result["recommendations"]:
+        console.print("\n[bold]Top Recommendations[/]")
+        for i, rec in enumerate(result["recommendations"][:3], 1):
+            console.print(
+                f"{i}. [bold]{rec['title']}[/] (Δp/hour: {abs(rec['expected_delta'])/rec['cost_hours']:.3f})"
+                f"\n   For claim: {rec['claim_title']}"
+                f"\n   Expected Δp: {rec['expected_delta']:+.3f}, Cost: {rec['cost_hours']} hours"
+            )
 
 
 @app.command()
-def run(path: Path, out: Optional[Path] = typer.Option(None, help="Write JSON result here")):
-    """Evaluate a note, save JSON and notebook, print posture."""
-    with path.open() as f:
-        note_data = yaml.safe_load(f)
-    note = RiskNote.model_validate(note_data)
-
-    result = evaluate_note(note)
-    if out:
-        out.write_text(json.dumps(result, indent=2))
-        typer.echo(f"JSON written to {out}", err=True)
-
-    nb_path = generate_notebook(note)
-    typer.echo(f"Notebook written to {nb_path}", err=True)
+def run(
+    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    output_dir: Path = Option(
+        ".", "--output-dir", "-o", 
+        help="Directory to save output files",
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+        resolve_path=True,
+    ),
+    output_format: OutputFormat = Option(
+        OutputFormat.TEXT, "--format", "-f", 
+        help="Output format",
+        case_sensitive=False,
+    ),
+    now: Optional[str] = Option(
+        None, 
+        help="Evaluation timestamp (ISO 8601 format, e.g., 2025-01-01T12:00:00Z)",
+    ),
+) -> None:
+    """Evaluate a risk note and generate reports.
+    
+    This command evaluates the specified risk note, applies temporal decay to
+    evidence, computes risk postures, and generates output artifacts.
+    """
+    try:
+        # Ensure output directory exists
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Parse evaluation time
+        eval_time = datetime.now().astimezone()
+        if now:
+            try:
+                from dateutil.parser import isoparse
+                eval_time = isoparse(now)
+            except ValueError as e:
+                console.print(f"[yellow]Warning: Invalid timestamp '{now}': {e}. Using current time.")
+        
+        # Load and validate the risk note
+        with console.status("[bold blue]Loading and validating risk note..."):
+            try:
+                with path.open() as f:
+                    note_data = yaml.safe_load(f)
+                note = RiskNote.model_validate(note_data)
+            except Exception as e:
+                console.print(f"[red]Error loading risk note: {e}")
+                raise typer.Exit(1)
+        
+        # Evaluate the note
+        with console.status("[bold blue]Evaluating risk note..."):
+            try:
+                result = evaluate_note(note, now=eval_time)
+            except EvaluationError as e:
+                console.print(f"[red]Evaluation error: {e}")
+                raise typer.Exit(1)
+        
+        # Generate output files
+        with console.status("[bold blue]Generating output files..."):
+            # Save JSON result
+            result_path = output_dir / f"{note.id}_result.json"
+            with result_path.open("w") as f:
+                json.dump(result, f, indent=2, default=str)
+            
+            # Generate notebook
+            try:
+                nb_path = generate_notebook(note, output_dir=output_dir)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to generate notebook: {e}")
+                nb_path = None
+            
+            # Generate GSN diagram
+            try:
+                gsn_path = generate_gsn_diagram(note, output_dir=output_dir)
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to generate GSN diagram: {e}")
+                gsn_path = None
+        
+        # Print summary
+        console.print("\n[bold green]✓ Evaluation complete[/]")
+        print_evaluation_summary(result)
+        
+        console.print("\n[bold]Output Files:[/]")
+        console.print(f"• JSON results: [blue]{result_path.absolute()}[/]")
+        if nb_path:
+            console.print(f"• Notebook: [blue]{nb_path.absolute()}[/]")
+        if gsn_path:
+            console.print(f"• GSN diagram: [blue]{gsn_path.absolute()}[/]")
+        
+        # Set exit code based on overall posture
+        if result["overall_posture"] == Posture.BLOCKING:
+            raise typer.Exit(3)
+        elif result["overall_posture"] == Posture.CONDITIONAL:
+            raise typer.Exit(2)
+            
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+        if __debug__:  # Only show traceback in debug mode
+            import traceback
+            traceback.print_exc()
+        raise typer.Exit(1)
 
     prov = capture_provenance(path)
     dump_prov_json(prov, Path(f"provenance_{note.id}.json"))
@@ -56,14 +286,104 @@ def run(path: Path, out: Optional[Path] = typer.Option(None, help="Write JSON re
 
 
 @app.command()
-def schema(out: Optional[Path] = typer.Option(None, help="Path to write the JSON Schema")):
-    """Emit the packaged JSON Schema to stdout or a file (portable)."""
-    pkg = "lousa"
-    name = "schemas/risk_note.schema.json"
-    with importlib_resources.files(pkg).joinpath(name).open("r") as f:
-        schema_txt = f.read()
-    if out:
-        out.write_text(schema_txt)
-        typer.echo(f"Schema written to {out}", err=True)
-    else:
-        sys.stdout.write(schema_txt)
+def schema(
+    output: Optional[Path] = Option(
+        None, 
+        "--output", "-o", 
+        help="Write schema to this file instead of stdout",
+        dir_okay=False,
+    ),
+    format: OutputFormat = Option(
+        OutputFormat.JSON, "--format", "-f", 
+        help="Output format",
+        case_sensitive=False,
+    ),
+) -> None:
+    """Generate and display the JSON Schema for risk notes.
+    
+    This command outputs the JSON Schema that defines the structure of valid
+    risk note files. The schema can be used for validation in other tools or
+    for documentation purposes.
+    """
+    try:
+        # Generate the JSON Schema from the Pydantic model
+        schema = RiskNote.model_json_schema()
+        
+        # Add top-level description if not present
+        if "description" not in schema:
+            schema["description"] = "A Lousa risk note for tracking assurance claims and evidence"
+        
+        # Format the output
+        if format == OutputFormat.JSON:
+            output_str = json.dumps(schema, indent=2)
+        elif format == OutputFormat.YAML:
+            import yaml
+            output_str = yaml.dump(schema, sort_keys=False)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+        
+        # Write to file or print to stdout
+        if output:
+            output.write_text(output_str)
+            console.print(f"[green]✓ Schema written to {output.absolute()}")
+        else:
+            console.print(output_str)
+            
+    except Exception as e:
+        console.print(f"[red]Error generating schema: {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def gsn(
+    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    output_dir: Path = Option(
+        ".", "--output-dir", "-o", 
+        help="Directory to save the GSN diagram",
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+        resolve_path=True,
+    ),
+    format: str = Option(
+        "svg", "--format", "-f", 
+        help="Output format (svg, png, pdf, etc.)",
+    ),
+) -> None:
+    """Generate a Goal Structuring Notation (GSN) diagram for a risk note.
+    
+    This command creates a visual representation of the risk note's structure
+    using GSN, showing how claims are supported by evidence and assumptions.
+    """
+    try:
+        # Load and validate the risk note
+        with console.status("[bold blue]Loading risk note..."):
+            with path.open() as f:
+                note_data = yaml.safe_load(f)
+            note = RiskNote.model_validate(note_data)
+        
+        # Generate the GSN diagram
+        with console.status(f"[bold blue]Generating GSN diagram in {format.upper()} format..."):
+            output_path = generate_gsn_diagram(note, output_dir=output_dir, format=format)
+        
+        console.print(f"[green]✓ GSN diagram saved to {output_path.absolute()}")
+        
+    except Exception as e:
+        console.print(f"[red]Error generating GSN diagram: {e}")
+        if __debug__:
+            import traceback
+            traceback.print_exc()
+        raise typer.Exit(1)
+
+
+def main() -> None:
+    """Entry point for the CLI."""
+    try:
+        app()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation cancelled by user")
+        raise typer.Exit(1)
+
+
+if __name__ == "__main__":
+    main()
