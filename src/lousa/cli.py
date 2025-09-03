@@ -312,7 +312,7 @@ def run(
         None, 
         help="Evaluation timestamp (ISO 8601 format, e.g., 2025-01-01T12:00:00Z)",
     ),
-    generate_notebook: bool = Option(
+    create_notebook: bool = Option(
         False,
         "--notebook", "-n",
         help="Generate a Jupyter notebook with the evaluation results"
@@ -369,20 +369,21 @@ def run(
             result_path = output_dir / f"{note.id}_result.json"
             with result_path.open("w") as f:
                 json.dump(result, f, indent=2, default=str)
-            
-            # Generate notebook
+
+            nb_path = None
+            if create_notebook:
+                try:
+                    nb_dir = notebook_output or output_dir
+                    nb_path = generate_notebook(note, output_dir=nb_dir)
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Failed to generate notebook: {e}")
+
+            # Capture provenance
             try:
-                nb_path = generate_notebook(note, output_dir=output_dir)
+                prov = capture_provenance(path)
+                save_provenance(prov, output_dir / f"provenance_{note.id}.json")
             except Exception as e:
-                console.print(f"[yellow]Warning: Failed to generate notebook: {e}")
-                nb_path = None
-            
-            # Generate GSN diagram
-            try:
-                gsn_path = generate_gsn_diagram(note, output_dir=output_dir)
-            except Exception as e:
-                console.print(f"[yellow]Warning: Failed to generate GSN diagram: {e}")
-                gsn_path = None
+                console.print(f"[yellow]Warning: Failed to capture provenance: {e}")
         
         # Print summary
         console.print("\n[bold green]✓ Evaluation complete[/]")
@@ -392,8 +393,6 @@ def run(
         console.print(f"• JSON results: [blue]{result_path.absolute()}[/]")
         if nb_path:
             console.print(f"• Notebook: [blue]{nb_path.absolute()}[/]")
-        if gsn_path:
-            console.print(f"• GSN diagram: [blue]{gsn_path.absolute()}[/]")
         
         # Set exit code based on overall posture
         if result["overall_posture"] == Posture.BLOCKING:
@@ -408,10 +407,6 @@ def run(
             traceback.print_exc()
         raise typer.Exit(1)
 
-    prov = capture_provenance(path)
-    dump_prov_json(prov, Path(f"provenance_{note.id}.json"))
-
-    typer.echo(f"Posture: {result['posture']}")
 
 
 @app.command()

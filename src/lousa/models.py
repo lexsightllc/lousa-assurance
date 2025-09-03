@@ -100,6 +100,7 @@ class Claim(BaseModel):
     id: str
     title: str
     description: Optional[str] = None
+    observed_at: Optional[datetime] = None
 
     prior: float = Field(..., gt=0.0, lt=1.0, description="Prior probability of risk")
     threshold_conditional: float = Field(..., gt=0.0, lt=1.0)
