@@ -4,4 +4,10 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
 install_dev_dependencies
-"${VENV_PATH}/bin/pytest" --cov=src/lousa --cov-report=term-missing --cov-report=xml "$@"
+export PYTHONHASHSEED="${PYTHONHASHSEED:-0}"
+"${PYTEST_BIN}" \
+    --cov=src/lousa \
+    --cov-branch \
+    --cov-report=term-missing \
+    --cov-report=xml \
+    "$@"

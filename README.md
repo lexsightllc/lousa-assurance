@@ -47,7 +47,7 @@ variable (defaults to `.venv`).
 | Type check | `scripts/typecheck` | `make typecheck` | Execute mypy in strict mode. |
 | Unit & integration tests | `scripts/test` | `make test` | Run pytest with coverage for unit and integration suites. |
 | End-to-end tests | `scripts/e2e` | `make e2e` | Execute e2e scenarios (no-op when none are defined). |
-| Coverage gate | `scripts/coverage` | `make coverage` | Enforce the minimum coverage threshold and generate XML reports. |
+| Coverage gate | `scripts/coverage` | `make coverage` | Generate XML/HTML reports and enforce adaptive line/branch thresholds with regression detection. |
 | Build | `scripts/build` | `make build` | Produce source and wheel distributions. |
 | Package | `scripts/package` | `make package` | Alias for build artifacts (for compatibility with downstream tooling). |
 | Release | `scripts/release` | `make release` | Perform a semantic version bump and publish-ready artifacts. |
@@ -74,9 +74,11 @@ Mermaid or PlantUML and committed alongside the ADRs.
 
 ## Observability
 
-Structured logging is provided through `structlog`. Downstream integrations
-should enrich context with request IDs, user identifiers (hashed/anonymized),
-and trace correlation metadata when embedding the library into services.
+Structured logging is provided through `lousa.logging`, which configures
+`structlog` with JSON output and automatic trace propagation. Downstream
+integrations should enrich context with request IDs, user identifiers
+(hashed/anonymized), and trace correlation metadata when embedding the library
+into services.
 
 ## License
 
