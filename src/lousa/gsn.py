@@ -19,21 +19,19 @@ Dependencies:
 from __future__ import annotations
 
 import hashlib
-import logging
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
 
-from graphviz import Digraph, Graph
+from graphviz import Digraph
 
-from .models import EvidenceItem, Investigation, Posture, RiskNote, Claim
-from .eval import evaluate_note, NoteEvaluationResult, ClaimResult
+from .eval import ClaimResult, NoteEvaluationResult, evaluate_note
+from .logging import get_logger
+from .models import Claim, EvidenceItem, Posture, RiskNote
 
-# Configure logging
-logger = logging.getLogger(__name__)
+# Structured logger with module context
+logger = get_logger(__name__).bind(component="gsn")
 
 # Constants for graph styling
 DEFAULT_NODE_STYLE = {
@@ -175,13 +173,13 @@ def _format_evidence_strength(lr_plus: float, lr_minus: float) -> str:
 
 def generate_gsn_diagram(
     note: RiskNote,
-    output_dir: Union[str, Path] = ".",
+    output_dir: str | Path = ".",
     format: str = "svg",
     direction: GraphDirection = GraphDirection.TOP_DOWN,
     show_evidence: bool = True,
     show_investigations: bool = True,
     show_metadata: bool = True,
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ) -> Path:
     """Generate a GSN diagram from a RiskNote.
     
@@ -208,8 +206,26 @@ def generate_gsn_diagram(
     elif not output_dir.is_dir():
         raise FileNotFoundError(f"Output path is not a directory: {output_dir}")
     
+    call_logger = logger.bind(
+        note_id=str(note.id),
+        output_dir=str(output_dir),
+        format=format,
+        direction=direction.value,
+    )
+    call_logger.info(
+        "gsn-render-start",
+        show_evidence=show_evidence,
+        show_investigations=show_investigations,
+        show_metadata=show_metadata,
+    )
+
     # Evaluate the note to get current postures
     evaluation = evaluate_note(note, now=now)
+    call_logger.info(
+        "gsn-evaluation-complete",
+        total_claims=len(note.claims),
+        overall_posture=evaluation["overall_posture"].value,
+    )
     
     # Create a new directed graph
     graph_attrs = {
@@ -271,9 +287,14 @@ def generate_gsn_diagram(
             cleanup=True,
             view=False,
         )
+        call_logger.info(
+            "gsn-render-complete",
+            output_path=str(rendered_path),
+        )
         return Path(rendered_path)
-    except Exception as e:
-        raise RuntimeError(f"Failed to render GSN diagram: {e}")
+    except Exception as exc:  # pragma: no cover - propagated for visibility
+        call_logger.exception("gsn-render-failed", error=str(exc))
+        raise RuntimeError(f"Failed to render GSN diagram: {exc}") from exc
 
 
 def _add_claim_to_graph(
@@ -287,7 +308,7 @@ def _add_claim_to_graph(
     # Find the evaluation result for this claim
     claim_result = next((c for c in evaluation["claims"] if c.claim_id == claim.id), None)
     if not claim_result:
-        logger.warning(f"No evaluation result found for claim: {claim.id}")
+        logger.warning("missing-claim-evaluation", claim_id=str(claim.id))
         return
     
     # Add the claim node
@@ -338,9 +359,6 @@ def _add_claim_to_graph(
     if show_investigations and claim.investigations:
         _add_investigations_to_graph(graph, claim, claim_result)
 
-        for ev in claim.evidence:
-            ev_id = _hash(ev.id)
-
 def _add_evidence_to_graph(
     graph: Digraph,
     claim: Claim,
@@ -351,7 +369,7 @@ def _add_evidence_to_graph(
         return
     
     # Group evidence by kind
-    evidence_by_kind: Dict[str, List[EvidenceItem]] = {}
+    evidence_by_kind: dict[str, list[EvidenceItem]] = {}
     for evidence in claim.evidence:
         evidence_by_kind.setdefault(evidence.kind, []).append(evidence)
     
@@ -447,7 +465,7 @@ def _add_metadata(
     graph: Digraph,
     note: RiskNote,
     evaluation: NoteEvaluationResult,
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ) -> None:
     """Add metadata to the graph as a footer."""
     now = now or datetime.now().astimezone()

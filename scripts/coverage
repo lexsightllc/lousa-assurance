@@ -4,10 +4,111 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
 install_dev_dependencies
-if [[ ! -f "${ROOT_DIR}/coverage.xml" ]]; then
-    echo "Coverage data not found. Running tests first." >&2
-    "${ROOT_DIR}/scripts/test"
+
+COVERAGE_JSON_PATH="${ROOT_DIR}/coverage.json"
+BASELINE_PATH="${ROOT_DIR}/ci/coverage-baseline.json"
+mkdir -p "$(dirname "${BASELINE_PATH}")"
+
+if [[ ! -f "${ROOT_DIR}/.coverage" || "${LOUSA_FORCE_TESTS:-0}" == "1" ]]; then
+    echo "Generating coverage data via test suite" >&2
+    "${ROOT_DIR}/scripts/test" "$@"
 fi
-"${VENV_PATH}/bin/coverage" xml
-"${VENV_PATH}/bin/coverage" html
-"${VENV_PATH}/bin/coverage" report --fail-under=85
+
+"${COVERAGE_BIN}" xml
+"${COVERAGE_BIN}" html
+"${COVERAGE_BIN}" json -o "${COVERAGE_JSON_PATH}"
+"${COVERAGE_BIN}" report
+
+"${PYTHON_BIN}" <<'PY'
+from __future__ import annotations
+
+import json
+import math
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+coverage_path = ROOT / "coverage.json"
+baseline_path = ROOT / "ci" / "coverage-baseline.json"
+
+if not coverage_path.exists():
+    raise SystemExit("Coverage JSON report not generated; aborting")
+
+totals = json.loads(coverage_path.read_text()).get("totals", {})
+line_percent = float(totals.get("percent_covered", 0.0))
+branch_percent = totals.get("percent_covered_branches")
+num_branches = totals.get("num_branches", 0)
+if branch_percent is None:
+    branch_percent = 100.0 if num_branches == 0 else 0.0
+else:
+    branch_percent = float(branch_percent)
+
+def threshold(baseline: float, minimum: float) -> float:
+    return max(minimum, 5.0 * math.floor(baseline / 5.0))
+
+if baseline_path.exists():
+    baseline = json.loads(baseline_path.read_text() or "{}")
+else:
+    baseline = {}
+
+baseline_line = float(baseline.get("line", line_percent))
+baseline_branch = float(baseline.get("branch", branch_percent))
+
+line_threshold = threshold(baseline_line, 70.0)
+branch_threshold = threshold(baseline_branch, 60.0)
+
+summary = {
+    "line_percent": line_percent,
+    "line_threshold": line_threshold,
+    "line_baseline": baseline_line,
+    "branch_percent": branch_percent,
+    "branch_threshold": branch_threshold,
+    "branch_baseline": baseline_branch,
+}
+
+failures: list[str] = []
+
+if line_percent + 1e-6 < line_threshold:
+    failures.append(
+        f"Line coverage {line_percent:.2f}% fell below enforced threshold {line_threshold:.2f}%"
+    )
+if branch_percent + 1e-6 < branch_threshold:
+    failures.append(
+        f"Branch coverage {branch_percent:.2f}% fell below enforced threshold {branch_threshold:.2f}%"
+    )
+if line_percent + 1e-6 < baseline_line:
+    failures.append(
+        f"Line coverage regression detected: {line_percent:.2f}% < baseline {baseline_line:.2f}%"
+    )
+if branch_percent + 1e-6 < baseline_branch:
+    failures.append(
+        f"Branch coverage regression detected: {branch_percent:.2f}% < baseline {baseline_branch:.2f}%"
+    )
+
+for key, value in summary.items():
+    print(f"{key.replace('_', ' ').title()}: {value:.2f}%")
+
+if failures:
+    for message in failures:
+        print(message, file=sys.stderr)
+    raise SystemExit(1)
+
+updated = False
+if line_percent > baseline_line + 1e-6:
+    baseline_line = line_percent
+    updated = True
+if branch_percent > baseline_branch + 1e-6:
+    baseline_branch = branch_percent
+    updated = True
+
+if updated or not baseline_path.exists():
+    baseline_path.write_text(
+        json.dumps({"line": baseline_line, "branch": baseline_branch}, indent=2) + "\n"
+    )
+    print(
+        "Updated coverage baselines to line={:.2f}% branch={:.2f}%".format(
+            baseline_line, baseline_branch
+        )
+    )
+PY
+

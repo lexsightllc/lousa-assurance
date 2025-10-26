@@ -20,40 +20,44 @@ Examples:
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Annotated, Any
 
 import typer
 import yaml
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
-from typer import Typer, Option
 
 from .eval import (
-    evaluate_note,
-    NoteEvaluationResult,
-    ClaimResult,
-    Posture,
     EvaluationError,
+    NoteEvaluationResult,
+    Posture,
+    evaluate_note,
 )
+from .gsn import generate_gsn_diagram
+from .logging import bind_context, bind_trace, configure_logging, get_logger
 from .models import RiskNote
 from .notebook import generate_notebook
 from .provenance import capture_provenance, format_provenance, save_provenance
-from .gsn import generate_gsn_diagram
 
 # Configure rich console
 console = Console()
 
 # Create the Typer app
-app = Typer(
+app = typer.Typer(
     name="lousa",
     help="Lousa: A framework for evaluating temporal and epistemic assurance claims",
     no_args_is_help=True,
 )
+
+# Configure structured logging for CLI usage
+configure_logging()
+TRACE_ID = bind_trace()
+bind_context(subsystem="cli")
+cli_logger = get_logger(__name__).bind(subsystem="cli")
+cli_logger.info("cli-session-start", trace_id=TRACE_ID)
 
 
 class OutputFormat(str, Enum):
@@ -64,7 +68,7 @@ class OutputFormat(str, Enum):
     NOTEBOOK = "notebook"  # Special format for Jupyter notebooks
 
 
-def print_validation_errors(errors: List[Dict[str, Any]]) -> None:
+def print_validation_errors(errors: list[dict[str, Any]]) -> None:
     """Pretty-print validation errors to the console."""
     from rich.table import Table
     
@@ -84,23 +88,31 @@ def print_validation_errors(errors: List[Dict[str, Any]]) -> None:
 
 @app.command()
 def notebook(
-    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
-    output_dir: Path = Option(
-        ".", "--output-dir", "-o", 
-        help="Directory to save the notebook",
-        file_okay=False,
-        dir_okay=True,
-        writable=True,
-        resolve_path=True,
-    ),
-    include_yaml: bool = Option(
-        True, 
-        help="Include the full YAML specification in the notebook"
-    ),
-    include_gsn: bool = Option(
-        True,
-        help="Generate and include GSN diagram in the notebook"
-    ),
+    path: Annotated[
+        Path,
+        typer.Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            ".",
+            "--output-dir",
+            "-o",
+            help="Directory to save the notebook",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+            resolve_path=True,
+        ),
+    ],
+    include_yaml: Annotated[
+        bool,
+        typer.Option(True, help="Include the full YAML specification in the notebook"),
+    ],
+    include_gsn: Annotated[
+        bool,
+        typer.Option(True, help="Generate and include GSN diagram in the notebook"),
+    ],
 ) -> None:
     """Generate a Jupyter notebook for a risk assessment.
     
@@ -120,7 +132,7 @@ def notebook(
                 note = RiskNote.model_validate(data)
             except Exception as e:
                 console.print(f"[red]Error loading risk note: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
             
             # Generate the notebook
             notebook_path = generate_notebook(
@@ -139,26 +151,33 @@ def notebook(
             traceback.print_exc()
         if isinstance(e, typer.Exit):
             raise
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
 def provenance(
-    path: Path = Option(None, "--path", "-p", help="Path to the YAML risk note"),
-    output: Optional[Path] = Option(
-        None, "--output", "-o", 
-        help="Save provenance to this file (default: print to stdout)",
-        dir_okay=False,
-    ),
-    format: OutputFormat = Option(
-        OutputFormat.TEXT, "--format", "-f", 
-        help="Output format",
-        case_sensitive=False,
-    ),
-    include_dependencies: bool = Option(
-        True,
-        help="Include package dependency information"
-    ),
+    path: Annotated[
+        Path,
+        typer.Option(None, "--path", "-p", help="Path to the YAML risk note"),
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            None,
+            "--output",
+            "-o",
+            help="Save provenance to this file (default: print to stdout)",
+            dir_okay=False,
+        ),
+    ],
+    format: Annotated[
+        OutputFormat,
+        typer.Option(OutputFormat.TEXT, "--format", "-f", help="Output format", case_sensitive=False),
+    ],
+    include_dependencies: Annotated[
+        bool,
+        typer.Option(True, help="Include package dependency information"),
+    ],
 ) -> None:
     """Generate and display provenance information.
     
@@ -193,13 +212,19 @@ def provenance(
         console.print(f"[red]Error capturing provenance: {e}")
         if isinstance(e, typer.Exit):
             raise
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
 def validate(
-    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
-    verbose: bool = Option(False, "--verbose", "-v", help="Show detailed validation output"),
+    path: Annotated[
+        Path,
+        typer.Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    ],
+    verbose: Annotated[
+        bool,
+        typer.Option(False, "--verbose", "-v", help="Show detailed validation output"),
+    ],
 ) -> None:
     """Validate a YAML risk note against the schema and data model.
     
@@ -214,7 +239,7 @@ def validate(
                     data = yaml.safe_load(f)
             except yaml.YAMLError as e:
                 console.print(f"[red]Error parsing YAML: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
             
             # Validate against the Pydantic model
             try:
@@ -224,11 +249,11 @@ def validate(
                 if hasattr(e, "errors") and verbose:
                     print_validation_errors(e.errors())
                 console.print(f"[red]✗ Validation failed: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
                 
     except Exception as e:
         console.print(f"[red]Error during validation: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def format_posterior(p: float) -> str:
@@ -254,9 +279,6 @@ def format_posture(posture: Posture) -> str:
 
 def print_evaluation_summary(result: NoteEvaluationResult) -> None:
     """Print a summary of the evaluation results to the console."""
-    from rich.panel import Panel
-    from rich.text import Text
-    
     # Overall result
     console.print("\n[bold]Evaluation Summary[/]")
     console.print(f"Note: [bold]{result['title']}[/] ({result['note_id']})")
@@ -294,44 +316,69 @@ def print_evaluation_summary(result: NoteEvaluationResult) -> None:
 
 @app.command()
 def run(
-    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
-    output_dir: Path = Option(
-        ".", "--output-dir", "-o", 
-        help="Directory to save output files",
-        file_okay=False,
-        dir_okay=True,
-        writable=True,
-        resolve_path=True,
-    ),
-    output_format: OutputFormat = Option(
-        OutputFormat.TEXT, "--format", "-f", 
-        help="Output format",
-        case_sensitive=False,
-    ),
-    now: Optional[str] = Option(
-        None, 
-        help="Evaluation timestamp (ISO 8601 format, e.g., 2025-01-01T12:00:00Z)",
-    ),
-    create_notebook: bool = Option(
-        False,
-        "--notebook", "-n",
-        help="Generate a Jupyter notebook with the evaluation results"
-    ),
-    notebook_output: Optional[Path] = Option(
-        None,
-        "--notebook-output",
-        help="Directory to save the notebook (default: same as --output-dir)",
-        file_okay=False,
-        dir_okay=True,
-        writable=True,
-        resolve_path=True,
-    ),
+    path: Annotated[
+        Path,
+        typer.Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            ".",
+            "--output-dir",
+            "-o",
+            help="Directory to save output files",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+            resolve_path=True,
+        ),
+    ],
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option(OutputFormat.TEXT, "--format", "-f", help="Output format", case_sensitive=False),
+    ],
+    now: Annotated[
+        str | None,
+        typer.Option(
+            None,
+            help="Evaluation timestamp (ISO 8601 format, e.g., 2025-01-01T12:00:00Z)",
+        ),
+    ],
+    create_notebook: Annotated[
+        bool,
+        typer.Option(
+            False,
+            "--notebook",
+            "-n",
+            help="Generate a Jupyter notebook with the evaluation results",
+        ),
+    ],
+    notebook_output: Annotated[
+        Path | None,
+        typer.Option(
+            None,
+            "--notebook-output",
+            help="Directory to save the notebook (default: same as --output-dir)",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+            resolve_path=True,
+        ),
+    ],
 ) -> None:
     """Evaluate a risk note and generate reports.
-    
+
     This command evaluates the specified risk note, applies temporal decay to
     evidence, computes risk postures, and generates output artifacts.
     """
+    cli_logger.info(
+        "cli-run-start",
+        command="run",
+        note_path=str(path),
+        output_dir=str(output_dir),
+        output_format=output_format.value,
+        create_notebook=create_notebook,
+    )
     try:
         # Ensure output directory exists
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -353,7 +400,7 @@ def run(
                 note = RiskNote.model_validate(note_data)
             except Exception as e:
                 console.print(f"[red]Error loading risk note: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
         
         # Evaluate the note
         with console.status("[bold blue]Evaluating risk note..."):
@@ -361,7 +408,7 @@ def run(
                 result = evaluate_note(note, now=eval_time)
             except EvaluationError as e:
                 console.print(f"[red]Evaluation error: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
         
         # Generate output files
         with console.status("[bold blue]Generating output files..."):
@@ -388,40 +435,53 @@ def run(
         # Print summary
         console.print("\n[bold green]✓ Evaluation complete[/]")
         print_evaluation_summary(result)
-        
+
         console.print("\n[bold]Output Files:[/]")
         console.print(f"• JSON results: [blue]{result_path.absolute()}[/]")
         if nb_path:
             console.print(f"• Notebook: [blue]{nb_path.absolute()}[/]")
-        
+
+        cli_logger.info(
+            "cli-run-complete",
+            command="run",
+            note_id=note.id,
+            output_dir=str(output_dir),
+            overall_posture=result["overall_posture"].value,
+            notebook_generated=bool(nb_path),
+        )
+
         # Set exit code based on overall posture
         if result["overall_posture"] == Posture.BLOCKING:
             raise typer.Exit(3)
         elif result["overall_posture"] == Posture.CONDITIONAL:
             raise typer.Exit(2)
-            
+
     except Exception as e:
         console.print(f"[red]Error: {e}")
         if __debug__:  # Only show traceback in debug mode
             import traceback
             traceback.print_exc()
-        raise typer.Exit(1)
+        cli_logger.exception("cli-run-error", command="run", error=str(e))
+        raise typer.Exit(1) from e
 
 
 
 @app.command()
 def schema(
-    output: Optional[Path] = Option(
-        None, 
-        "--output", "-o", 
-        help="Write schema to this file instead of stdout",
-        dir_okay=False,
-    ),
-    format: OutputFormat = Option(
-        OutputFormat.JSON, "--format", "-f", 
-        help="Output format",
-        case_sensitive=False,
-    ),
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            None,
+            "--output",
+            "-o",
+            help="Write schema to this file instead of stdout",
+            dir_okay=False,
+        ),
+    ],
+    format: Annotated[
+        OutputFormat,
+        typer.Option(OutputFormat.JSON, "--format", "-f", help="Output format", case_sensitive=False),
+    ],
 ) -> None:
     """Generate and display the JSON Schema for risk notes.
     
@@ -455,24 +515,32 @@ def schema(
             
     except Exception as e:
         console.print(f"[red]Error generating schema: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
 def gsn(
-    path: Path = Option(..., "--path", "-p", help="Path to the YAML risk note"),
-    output_dir: Path = Option(
-        ".", "--output-dir", "-o", 
-        help="Directory to save the GSN diagram",
-        file_okay=False,
-        dir_okay=True,
-        writable=True,
-        resolve_path=True,
-    ),
-    format: str = Option(
-        "svg", "--format", "-f", 
-        help="Output format (svg, png, pdf, etc.)",
-    ),
+    path: Annotated[
+        Path,
+        typer.Option(..., "--path", "-p", help="Path to the YAML risk note"),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            ".",
+            "--output-dir",
+            "-o",
+            help="Directory to save the GSN diagram",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+            resolve_path=True,
+        ),
+    ],
+    format: Annotated[
+        str,
+        typer.Option("svg", "--format", "-f", help="Output format (svg, png, pdf, etc.)"),
+    ],
 ) -> None:
     """Generate a Goal Structuring Notation (GSN) diagram for a risk note.
     
@@ -497,7 +565,7 @@ def gsn(
         if __debug__:
             import traceback
             traceback.print_exc()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def main() -> None:
@@ -506,7 +574,7 @@ def main() -> None:
         app()
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 if __name__ == "__main__":

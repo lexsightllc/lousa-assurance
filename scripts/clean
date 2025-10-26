@@ -3,5 +3,6 @@ set -euo pipefail
 
 source "$(dirname "$0")/common.sh"
 
-rm -rf "${VENV_PATH}" build dist htmlcov .pytest_cache .mypy_cache coverage.xml
+rm -rf "${VENV_PATH}" build dist htmlcov .pytest_cache .mypy_cache coverage.xml \
+    coverage.json .coverage
 find "${ROOT_DIR}" -type d -name "__pycache__" -prune -exec rm -rf {} +

@@ -8,3 +8,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Repository-wide standardization of tooling, documentation, and automation.
+- Structured logging with trace propagation across CLI workflows and GSN rendering.
+- Adaptive coverage gating with persistent baselines for line and branch metrics.
