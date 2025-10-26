@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+install_dev_dependencies
+if [[ ! -f "${ROOT_DIR}/coverage.xml" ]]; then
+    echo "Coverage data not found. Running tests first." >&2
+    "${ROOT_DIR}/scripts/test"
+fi
+"${VENV_PATH}/bin/coverage" xml
+"${VENV_PATH}/bin/coverage" html
+"${VENV_PATH}/bin/coverage" report --fail-under=85

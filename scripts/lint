@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+FIX="false"
+if [[ "${1:-}" == "--fix" ]]; then
+    FIX="true"
+    shift || true
+fi
+
+install_dev_dependencies
+
+if [[ "${FIX}" == "true" ]]; then
+    "${VENV_PATH}/bin/ruff" check --fix "$@"
+    "${VENV_PATH}/bin/isort" "$@"
+    "${VENV_PATH}/bin/black" "$@"
+else
+    "${VENV_PATH}/bin/ruff" check "$@"
+    "${VENV_PATH}/bin/isort" --check-only "$@"
+    "${VENV_PATH}/bin/black" --check "$@"
+fi

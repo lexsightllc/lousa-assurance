@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+GROUP="${1:-all}"
+
+install_dev_dependencies
+
+targets=()
+case "${GROUP}" in
+  runtime)
+    "${VENV_PATH}/bin/pip-compile" pyproject.toml --output-file requirements.txt
+    targets+=(requirements.txt)
+    ;;
+  dev)
+    "${VENV_PATH}/bin/pip-compile" pyproject.toml --extra dev --output-file requirements-dev.txt
+    targets+=(requirements-dev.txt)
+    ;;
+  all)
+    "${VENV_PATH}/bin/pip-compile" pyproject.toml --output-file requirements.txt
+    "${VENV_PATH}/bin/pip-compile" pyproject.toml --extra dev --output-file requirements-dev.txt
+    targets+=(requirements-dev.txt requirements.txt)
+    ;;
+  *)
+    echo "Unknown dependency group: ${GROUP}" >&2
+    exit 1
+    ;;
+esac
+
+"${VENV_PATH}/bin/pip-sync" "${targets[@]}"
+"${VENV_PATH}/bin/pip" list --outdated

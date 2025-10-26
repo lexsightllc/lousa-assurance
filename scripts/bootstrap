@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+install_dev_dependencies
+"${VENV_PATH}/bin/detect-secrets" scan --update .secrets.baseline --all-files >/dev/null
+ensure_bootstrap
+
+echo "Bootstrap complete. Virtual environment located at ${VENV_PATH}."

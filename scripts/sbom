@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+install_dev_dependencies
+mkdir -p "${ROOT_DIR}/sbom"
+"${VENV_PATH}/bin/cyclonedx-bom" -o "${ROOT_DIR}/sbom/cyclonedx.json" -F json

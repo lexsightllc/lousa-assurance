@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+install_dev_dependencies
+"${VENV_PATH}/bin/isort" "$@"
+"${VENV_PATH}/bin/black" "$@"
+"${VENV_PATH}/bin/ruff" format "$@"

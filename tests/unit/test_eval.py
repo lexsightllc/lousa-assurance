@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
-from lousa.models import Claim, EvidenceItem, EvidenceKind
+
 from lousa.eval import evaluate_claim
+from lousa.models import Claim, EvidenceItem, EvidenceKind
 
 
 def test_supporting_evidence_increases_risk():

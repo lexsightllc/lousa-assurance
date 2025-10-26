@@ -1,0 +1,7 @@
+# Default owners
+* @lousa/assurance-platform
+
+# Critical domains
+src/ @lousa/assurance-platform
+scripts/ @lousa/assurance-platform
+.github/ @lousa/assurance-platform
