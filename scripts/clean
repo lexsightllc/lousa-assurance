@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+rm -rf "${VENV_PATH}" build dist htmlcov .pytest_cache .mypy_cache coverage.xml
+find "${ROOT_DIR}" -type d -name "__pycache__" -prune -exec rm -rf {} +

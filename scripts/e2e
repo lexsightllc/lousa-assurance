@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+install_dev_dependencies
+
+if has_py_files "${ROOT_DIR}/tests/e2e"; then
+    "${VENV_PATH}/bin/pytest" tests/e2e "$@"
+else
+    echo "No end-to-end tests defined. Skipping." >&2
+fi

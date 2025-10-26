@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+INCREMENT="${1:-patch}"
+shift || true
+
+install_dev_dependencies
+"${VENV_PATH}/bin/cz" bump --yes --changelog --increment "${INCREMENT}"
+"$(dirname "$0")/build" "$@"
+echo "Release bump complete. Remember to push tags."

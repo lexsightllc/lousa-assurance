@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  app:
+    image: python:3.11-slim
+    command: bash -c "pip install --no-cache-dir -e .[dev] && lousa --help"
+    working_dir: /app
+    volumes:
+      - .:/app:delegated
+    environment:
+      - LOUSA_ENV=development
+      - LOUSA_LOG_LEVEL=INFO

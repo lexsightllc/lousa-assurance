@@ -1,0 +1,7 @@
+# Conventional Commit Message Template
+# <type>[optional scope]: <description>
+#
+# Example: feat(cli): add provenance export command
+#
+# Allowed types: feat, fix, docs, style, refactor, perf, test, build,
+# ci, chore, revert
