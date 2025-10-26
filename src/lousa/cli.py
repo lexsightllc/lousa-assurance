@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Lousa command-line interface for risk assessment and assurance tracking.
 
 Lousa provides tools for evaluating risk notes, generating reports, and tracking

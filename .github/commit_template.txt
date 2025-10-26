@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # Conventional Commit Message Template
 # <type>[optional scope]: <description>
 #

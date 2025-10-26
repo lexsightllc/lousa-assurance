@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Goal-Structuring-Notation (GSN) renderer for RiskNote.
 
 This module provides functionality to generate visual representations of risk notes

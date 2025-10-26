@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # 0001: Repository Standardization Baseline
 
 - Status: Accepted

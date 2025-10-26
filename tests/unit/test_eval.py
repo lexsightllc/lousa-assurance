@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 from datetime import datetime, timedelta
 
 from lousa.eval import evaluate_claim

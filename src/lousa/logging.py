@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Structured logging utilities with context propagation."""
 from __future__ import annotations
 

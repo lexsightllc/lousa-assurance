@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Documentation
 
 This directory contains the living documentation set for the Lousa Assurance project.

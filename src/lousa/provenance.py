@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Provenance capture and management for Lousa risk assessments.
 
 This module provides functionality to capture and manage execution context,

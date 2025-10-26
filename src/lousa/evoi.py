@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 import math
 from typing import Dict
 from .models import Claim, Investigation
