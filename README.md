@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Lousa Assurance
 
 Lousa Assurance evaluates temporal and epistemic assurance cases defined in a
@@ -82,4 +83,16 @@ into services.
 
 ## License
 
-Distributed under the [MIT License](LICENSE).
+Lousa Assurance is licensed under the [Mozilla Public License 2.0](LICENSE). The MPL
+requires that any distributed modifications to MPL-covered source files remain under
+the same license, while larger works that merely incorporate this project may continue
+under their own terms. Refer to the [NOTICE](NOTICE) file for attribution details and
+redistribution requirements.
+
+## Credits
+
+- Project leadership and stewardship: Augusto "Guto" Ochoa Ughini
+- Core contributors: the Lousa Assurance engineering team and community members
+
+Please retain both the MPL-2.0 license and the NOTICE file when redistributing the
+software.

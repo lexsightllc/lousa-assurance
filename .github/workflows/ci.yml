@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 name: ci
 
 on:
@@ -6,6 +7,29 @@ on:
   pull_request:
 
 jobs:
+  license_hygiene:
+    name: License hygiene
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install ScanCode and REUSE tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install scancode-toolkit==32.2.0 reuse
+      - name: Run ScanCode license scan
+        run: scancode --license --copyright --summary-plain --json-pp scancode.json .
+      - name: Upload ScanCode report
+        uses: actions/upload-artifact@v4
+        with:
+          name: scancode-report
+          path: scancode.json
+          retention-days: 7
+      - name: Verify SPDX headers with REUSE
+        run: reuse lint
   quality:
     name: Quality checks (Python ${{ matrix.python-version }} / ${{ matrix.os }})
     runs-on: ${{ matrix.os }}

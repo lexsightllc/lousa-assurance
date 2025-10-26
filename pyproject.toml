@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -8,6 +9,10 @@ version = "0.1.0"
 description = "A framework for evaluating temporal and epistemic assurance claims"
 readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MPL-2.0" }
+classifiers = [
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+]
 dependencies = [
     "pydantic>=2.6",
     "PyYAML>=6.0",

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 . "$PSScriptRoot/common.ps1"
 
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $VenvPath, 'build', 'dist', 'htmlcov', '.pytest_cache', '.mypy_cache', 'coverage.xml'

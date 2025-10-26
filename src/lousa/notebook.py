@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Generate reproducible Jupyter notebooks for Lousa risk assessments.
 
 This module creates self-contained notebooks that document the complete evaluation

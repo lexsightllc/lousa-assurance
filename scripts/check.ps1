@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 & (Join-Path $root 'scripts/lint.ps1') @args
 & (Join-Path $root 'scripts/typecheck.ps1') @args

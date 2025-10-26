@@ -1,6 +1,14 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Contributing
 
 Thank you for your interest in contributing to Lousa Assurance!
+
+## Licensing of Contributions
+
+By contributing to this project you agree that your contributions are licensed under
+the [Mozilla Public License 2.0](LICENSE) using inbound=outbound terms. Include the
+`SPDX-License-Identifier: MPL-2.0` header in new source files and retain any existing
+copyright notices.
 
 ## Getting Started
 

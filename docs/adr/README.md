@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Architecture Decision Records
 
 This directory captures key architectural decisions following the MADR template.

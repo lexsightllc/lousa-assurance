@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 $ErrorActionPreference = "Stop"
 
 $global:RootDir = Resolve-Path (Join-Path $PSScriptRoot '..')

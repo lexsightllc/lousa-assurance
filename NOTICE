@@ -1,0 +1,12 @@
+SPDX-License-Identifier: MPL-2.0
+
+ProjectName © 2025 Augusto 'Guto' Ochoa Ughini
+
+This distribution of Lousa Assurance is licensed under the Mozilla Public License 2.0.
+
+Attribution Notices
+-------------------
+- Lousa Assurance currently bundles only original source files produced within this repository.
+- Runtime dependencies declared in `pyproject.toml` are distributed separately under their respective licenses.
+
+Copies of the MPL-2.0 license and these notices must accompany any redistribution of this software.

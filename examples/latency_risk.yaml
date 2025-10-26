@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 version: "0.1"
 id: "demo.latency"
 title: "Latency spikes under load threaten SLO"

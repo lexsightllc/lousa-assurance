@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 # Code of Conduct
 
 We follow the [Contributor Covenant](https://www.contributor-covenant.org/)

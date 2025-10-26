@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 repos:
   - repo: https://github.com/psf/black
     rev: 24.4.2
@@ -28,3 +29,10 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
+  - repo: local
+    hooks:
+      - id: add-spdx-header
+        name: Add SPDX headers
+        entry: python scripts/add_spdx_header.py
+        language: system
+        types: [text]

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 SHELL := /bin/bash
 ROOT_DIR := $(realpath .)
 ARGS ?=
